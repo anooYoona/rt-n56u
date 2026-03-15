@@ -18,11 +18,11 @@ jobs:
         DEBIAN_FRONTEND: noninteractive
       run: |
         sudo apt-get update
-        # 安装依赖，并强制降级 GCC 到 v9，以兼容老毛子老旧的内核代码
+        # 极客补丁 1：直接在系统层安装原生 golang，从源头解决问题
         sudo apt-get -y install unzip libtool-bin curl cmake gperf gawk flex bison nano xxd fakeroot \
         cpio git python3-docutils gettext automake autopoint texinfo build-essential help2man \
         pkg-config zlib1g-dev libgmp3-dev libmpc-dev libmpfr-dev libncurses5-dev libltdl-dev wget ca-certificates \
-        gcc-9 g++-9
+        gcc-9 g++-9 golang
         sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-9 100
         sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-9 100
 
@@ -40,12 +40,14 @@ jobs:
         CONFIG_TOOLCHAIN_DIR=${cwd//\//\\\/}\\/toolchain-mipsel
         cd trunk
         
-        # 极客神级补丁：手动拉取 Go 环境，解决新系统 wget 证书报错导致的 html 解压惨案
-        echo "Injecting Go environment patch..."
-        mkdir -p tools
-        wget --no-check-certificate -qO tools/go.tar.gz https://dl.google.com/go/go1.17.13.linux-amd64.tar.gz
-        tar -zxf tools/go.tar.gz -C tools/
-        rm -f tools/go.tar.gz
+        # 极客补丁 2：使用软链接“偷天换日”，欺骗旧 Makefile 让它直接跳过坑爹的下载步骤！
+        echo "Injecting ultimate Go environment spoofing..."
+        mkdir -p tools/go/bin
+        ln -sf /usr/bin/go tools/go/bin/go
+        
+        # 极客补丁 3：顺手把 Makefile 里脆弱的 wget 全局替换成带重试逻辑的 curl
+        sed -i 's/wget -O/curl -kLo/g' tools/Makefile
+        sed -i 's/wget --no-check-certificate -O/curl -kLo/g' tools/Makefile
         
         for m in $TNAME;
         do
@@ -55,13 +57,12 @@ jobs:
         fi
         cp -f configs/templates/$m.config .config
         
-        # 绝对尊重你的定制配置，不添加任何强盗覆写逻辑
         sed -i "s/^CONFIG_TOOLCHAIN_DIR=.*$/CONFIG_TOOLCHAIN_DIR=${CONFIG_TOOLCHAIN_DIR}/g" .config
         sudo ./clear_tree_simple
         sudo ./build_firmware_modify $m 0
         sudo mv -f images/*.trx /opt/images/
         done
-        
+
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
