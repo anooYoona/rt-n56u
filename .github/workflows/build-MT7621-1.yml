@@ -18,11 +18,10 @@ jobs:
         DEBIAN_FRONTEND: noninteractive
       run: |
         sudo apt-get update
-        # 极客补丁 1：直接在系统层安装原生 golang，从源头解决问题
         sudo apt-get -y install unzip libtool-bin curl cmake gperf gawk flex bison nano xxd fakeroot \
         cpio git python3-docutils gettext automake autopoint texinfo build-essential help2man \
         pkg-config zlib1g-dev libgmp3-dev libmpc-dev libmpfr-dev libncurses5-dev libltdl-dev wget ca-certificates \
-        gcc-9 g++-9 golang
+        gcc-9 g++-9
         sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-9 100
         sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-9 100
 
@@ -38,17 +37,12 @@ jobs:
       run: |
         cwd=`pwd`
         CONFIG_TOOLCHAIN_DIR=${cwd//\//\\\/}\\/toolchain-mipsel
+        
+        echo "Pre-downloading the exact Go 1.15.2 archive to bypass broken Makefile links..."
+        mkdir -p trunk/tools/go
+        curl -kLo trunk/tools/go/go1.15.2.linux-amd64.tar.gz https://dl.google.com/go/go1.15.2.linux-amd64.tar.gz
+        
         cd trunk
-        
-        # 极客补丁 2：使用软链接“偷天换日”，欺骗旧 Makefile 让它直接跳过坑爹的下载步骤！
-        echo "Injecting ultimate Go environment spoofing..."
-        mkdir -p tools/go/bin
-        ln -sf /usr/bin/go tools/go/bin/go
-        
-        # 极客补丁 3：顺手把 Makefile 里脆弱的 wget 全局替换成带重试逻辑的 curl
-        sed -i 's/wget -O/curl -kLo/g' tools/Makefile
-        sed -i 's/wget --no-check-certificate -O/curl -kLo/g' tools/Makefile
-        
         for m in $TNAME;
         do
         if [ ! -f configs/templates/$m.config ] ; then
