@@ -38,9 +38,15 @@ jobs:
         cwd=`pwd`
         CONFIG_TOOLCHAIN_DIR=${cwd//\//\\\/}\\/toolchain-mipsel
         
-        echo "Pre-downloading the exact Go 1.15.2 archive to bypass broken Makefile links..."
+        # 👑 补丁 1：喂饭 Go 环境 (修复谷歌老链接)
+        echo "Pre-downloading the exact Go 1.15.2 archive..."
         mkdir -p trunk/tools/go
         curl -kLo trunk/tools/go/go1.15.2.linux-amd64.tar.gz https://dl.google.com/go/go1.15.2.linux-amd64.tar.gz
+        
+        # 👑 补丁 2：喂饭 HTOP 源码 (Bintray 已经在 2021 年倒闭了！)
+        echo "Pre-downloading htop 3.0.2 from GitHub to bypass dead Bintray links..."
+        mkdir -p trunk/user/htop
+        curl -kLo trunk/user/htop/htop-3.0.2.tar.gz https://github.com/htop-dev/htop/releases/download/3.0.2/htop-3.0.2.tar.gz
         
         cd trunk
         for m in $TNAME;
